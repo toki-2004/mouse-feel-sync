@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>手感同步助手 · FPS 屏幕位移 / 桌面</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --bg:#f6f7f9; --card:#fff; --line:#e3e6ea; --text:#22262b; --muted:#6b7280;
+  --accent:#4f6ef7; --accent-soft:#eef1fe; --green:#16a34a; --green-soft:#e8f7ee;
+  --amber:#b45309; --amber-soft:#fdf3e3; --danger:#dc2626;
+  --radius:12px; --shadow:0 1px 3px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+.wrap{max-width:1000px;margin:0 auto;padding:22px 18px 60px}
+header{margin-bottom:18px}
+header h1{font-size:22px;margin:0 0 4px}
+header p{color:var(--muted);margin:0;font-size:13.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:600;font-size:12px}
+tr:last-child td{border-bottom:none}
+tr.base-row td{background:var(--accent-soft)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+input,select,button{font-family:inherit;font-size:13px}
+input[type=number],input[type=text],select{border:1px solid var(--line);border-radius:8px;padding:6px 9px;background:#fff;outline:none;transition:border-color .12s}
+input:focus,select:focus{border-color:var(--accent)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;transition:all .12s}
+.btn:hover{background:#f3f4f6}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#3f5be0}
+.btn.danger{color:var(--danger)}
+.btn.danger:hover{background:#fdecec}
+.btn.sm{padding:3px 8px;font-size:12px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:none;background:#fff;padding:7px 14px;cursor:pointer;font-size:13px}
+.seg button.on{background:var(--accent);color:#fff}
+.note{font-size:12.5px;color:var(--muted);margin-top:8px}
+.okline{background:var(--green-soft);border:1px solid #bfe6cd;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:10px}
+.tip{display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.tip:last-child{border-bottom:none}
+.tip .t{flex:0 0 26px;height:26px;border-radius:50%;background:var(--amber-soft);color:var(--amber);display:flex;align-items:center;justify-content:center;font-size:13px}
+.tip .t.info{background:var(--accent-soft);color:var(--accent)}
+.empty{color:var(--muted);text-align:center;padding:26px 0;font-size:13px}
+.hidden{display:none}
+@media (max-width:720px){ .row{flex-direction:column;align-items:stretch} table{font-size:12px} th,td{padding:6px 6px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>手感同步助手 <span class="badge">FPS 屏幕位移 / 桌面</span></h1>
+  <p>FPS 场景：同一款游戏、不同大小的屏幕，获得相同的<b>画面物理位移</b>手感，核心 <b>DPI × 屏幕水平宽 = 常数</b>。桌面场景：跨屏光标物理位移一致，核心 <b>DPI ∝ 有效 PPI</b>。</p>
+</header>
+
+<section class="card">
+  <h2>场景</h2>
+  <div class="seg" id="scenarioSeg">
+    <button data-s="fps" class="on">FPS 屏幕位移</button>
+    <button data-s="desktop">桌面指针手感</button>
+  </div>
+</section>
+
+<!-- ================= FPS ================= -->
+<div id="fpsView">
+  <section class="card">
+    <h2>① 我的屏幕</h2>
+    <table>
+      <thead><tr><th>名称</th><th class="num">屏幕水平宽(cm)</th><th>操作</th></tr></thead>
+      <tbody id="fpsBody"></tbody>
+    </table>
+    <div class="row" style="margin-top:12px">
+      <div class="field" style="flex:1;min-width:200px"><label>名称</label><input type="text" id="fFName" placeholder="如：16.1 寸笔记本 / 24 寸显示器"></div>
+      <div class="field"><label>屏幕水平宽(cm)</label><input type="number" id="fFWidth" min="1" step="0.1"></div>
+      <button class="btn primary" id="btnFpsAdd">添加屏幕</button>
+    </div>
+    <div class="note">水平宽可量屏幕可视区，或用「对角英寸 × 0.8716」（16:9）估算；直接填宽更准。</div>
+  </section>
+
+  <section class="card">
+    <h2>② 基准设置</h2>
+    <div class="row">
+      <div class="field"><label>基准屏幕</label><select id="fpsBaseSel"></select></div>
+      <div class="field"><label>基准屏幕上的鼠标 DPI</label><input type="number" id="fpsBaseDpi" min="50" max="30000" step="1" value="1600"></div>
+      <div class="note" style="align-self:center">其它屏幕的 DPI = 基准 DPI × 基准屏宽 ÷ 本屏宽。</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>③ 推荐 DPI</h2>
+    <div id="fpsResultWrap"></div>
+  </section>
+
+  <section class="card">
+    <h2>④ 说明</h2>
+    <div class="tip"><span class="t">!</span><div><b>前提</b>：同一款游戏、同一个游戏内灵敏度、同一 FOV，并开启 Raw Input / 原始输入、关闭鼠标加速度（系统与游戏内）。</div></div>
+    <div class="tip"><span class="t">!</span><div><b>与分辨率、系统缩放、屏幕型号无关</b>：游戏直读鼠标计数转视角，缩放只影响桌面；同一游戏内「画面位移手感」只取决于 DPI × 屏幕水平宽。</div></div>
+    <div class="tip"><span class="t">!</span><div><b>使用方法</b>：在各设备上用鼠标驱动软件把 DPI 设置为对应的「推荐 DPI」即可；换屏后重看本表。</div></div>
+    <div class="tip"><span class="t">!</span><div><b>更换游戏或改动游戏内 FOV</b>：需要重新在基准屏幕上校准一次基准 DPI，再同步其它屏幕。</div></div>
+    <div class="tip"><span class="t info">i</span><div><b>公式</b>：画面位移（鼠标移动 1cm，画面相对准星滑过距离）= DPI × 灵敏度 × yaw × 屏宽 ÷ FOV。同游戏同灵敏度同 FOV 时简化为 <b>DPI × 屏宽 = 常数</b>。</div></div>
+  </section>
+</div>
+
+<!-- ================= 桌面 ================= -->
+<div id="desktopView" class="hidden">
+  <section class="card">
+    <h2>① 我的设备</h2>
+    <table>
+      <thead><tr><th>名称</th><th class="num">分辨率</th><th class="num">对角(英寸)</th><th class="num">缩放%</th><th class="num">水平宽(cm)</th><th>操作</th></tr></thead>
+      <tbody id="devBody"></tbody>
+    </table>
+    <div class="row" style="margin-top:12px">
+      <div class="field" style="flex:1;min-width:170px"><label>名称</label><input type="text" id="fName" placeholder="如：笔记本 16.1"></div>
+      <div class="field"><label>水平分辨率</label><input type="number" id="fW" min="1" step="1"></div>
+      <div class="field"><label>垂直分辨率</label><input type="number" id="fH" min="1" step="1"></div>
+      <div class="field"><label>对角尺寸(英寸)</label><input type="number" id="fDiag" min="1" step="0.1"></div>
+      <div class="field"><label>系统缩放(%)</label><input type="number" id="fScale" min="50" max="400" step="5" value="100"></div>
+      <div class="field"><label>水平宽(cm·可选)</label><input type="number" id="fWidthCm" min="1" step="0.1" placeholder="留空按对角线算"></div>
+      <button class="btn primary" id="btnAddDev">添加设备</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div class="field" style="flex:1"><label>快捷预设</label><select id="presetSel"><option value="">— 选择预设 —</option></select></div>
+      <button class="btn" id="btnPreset">添加预设到列表</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>② 计算方式</h2>
+    <div class="seg" id="dModeSeg">
+      <button data-mode="A" class="on">以基准设备 DPI 换算</button>
+      <button data-mode="B">直接设定手感倍率</button>
+    </div>
+    <div class="row" style="margin-top:12px" id="dModeARow">
+      <div class="field"><label>基准设备</label><select id="baseSel"></select></div>
+      <div class="field"><label>基准 DPI</label><input type="number" id="baseDpi" min="50" max="20000" step="1" value="1600"></div>
+    </div>
+    <div class="row" style="margin-top:12px;display:none" id="dModeBRow">
+      <div class="field" style="flex:1;max-width:420px"><label>手感倍率（鼠标每移动 1 厘米，光标移动几厘米）</label><input type="number" id="ratio" min="0.1" max="200" step="0.01" value="13.07"></div>
+    </div>
+    <div class="note" id="dModeHint"></div>
+  </section>
+
+  <section class="card">
+    <h2>③ 推荐设置 <span class="badge" id="resultBadge"></span></h2>
+    <div id="resultWrap"></div>
+  </section>
+
+  <section class="card">
+    <h2>④ 手感验证</h2>
+    <div class="row">
+      <div class="field"><label>鼠标在垫子上移动距离 (cm)</label><input type="number" id="dist" min="0.1" step="0.1" value="5"></div>
+    </div>
+    <div id="verifyWrap" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card">
+    <h2>⑤ 关键提醒（桌面指针）</h2>
+    <div class="tip"><span class="t">!</span><div><b>关闭鼠标加速度</b>：Windows「提高指针精确度」必须关闭，否则手感非线性，以上计算全部失效。</div></div>
+    <div class="tip"><span class="t">!</span><div><b>缩放按实际填写</b>：系统缩放是 125% / 150% 时必须如实填入，程序会自动换算「有效分辨率」（桌面光标的物理位移确实受缩放影响）。</div></div>
+    <div class="tip"><span class="t">!</span><div><b>DPI 取整</b>：推荐值若带小数，选鼠标支持的最接近档位（多数鼠标 50 / 100 步进），误差通常可忽略。</div></div>
+    <div class="tip"><span class="t info">i</span><div><b>公式</b>：有效水平像素 = 水平分辨率 ÷ 缩放系数；有效 PPI = 有效水平像素 ÷ 屏幕水平物理宽度；推荐 DPI = 手感倍率 × 有效 PPI。</div></div>
+  </section>
+</div>
+
+<section class="card">
+  <h2>配置同步（多端）</h2>
+  <div class="row">
+    <button class="btn" id="btnExport">导出配置 JSON</button>
+    <button class="btn" id="btnCopy">复制配置文本</button>
+    <button class="btn" id="btnImport">导入配置</button>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+    <button class="btn danger" id="btnReset">恢复默认</button>
+  </div>
+  <div class="note">配置保存在当前浏览器的本地存储中。换设备 / 换浏览器时：先导出，再到另一台设备导入，即可得到相同的推荐值。</div>
+</section>
+</div>
+
+<script>
+// ---------- 预设与默认数据 ----------
+const PRESETS = [
+  { name: '13.3" 2K 笔记本', resW: 2560, resH: 1600, diag: 13.3, scale: 100, widthCm: '' },
+  { name: '15.6" 1080p 笔记本', resW: 1920, resH: 1080, diag: 15.6, scale: 100, widthCm: '' },
+  { name: '16.1" 1080p 笔记本', resW: 1920, resH: 1080, diag: 16.1, scale: 100, widthCm: '' },
+  { name: '24" 1080p 显示器', resW: 1920, resH: 1080, diag: 24, scale: 100, widthCm: '' },
+  { name: '24" 2K 显示器', resW: 2560, resH: 1440, diag: 24, scale: 100, widthCm: '' },
+  { name: '27" 2K 显示器', resW: 2560, resH: 1440, diag: 27, scale: 100, widthCm: '' },
+  { name: '27" 4K 显示器', resW: 3840, resH: 2160, diag: 27, scale: 100, widthCm: '' },
+];
+const LS_KEY = 'feel-sync-state-v3';
+const $ = (s) => document.querySelector(s);
+const uid = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const num = (v, n) => (isFinite(v) ? Number(v).toFixed(n) : '—');
+
+let state = {
+  scenario: 'fps',
+  fps: { screens: [], baseId: '', baseDpi: 1600 },
+  desktop: { devices: [], mode: 'A', baseId: '', baseDpi: 1600, ratio: 13.07 },
+};
+let fpsEditingId = null;
+let desktopEditingId = null;
+
+function defaultFpsState() {
+  const s = [
+    { id: uid(), name: '16.1" 笔记本', widthCm: 35.6 },
+    { id: uid(), name: '24" 显示器', widthCm: 53.1 },
+  ];
+  return { screens: s, baseId: s[1].id, baseDpi: 1600 };
+}
+function defaultDesktopState() {
+  const d = [
+    { id: uid(), name: '16.1" 1080p 笔记本', resW: 1920, resH: 1080, diag: 16.1, scale: 100, widthCm: '' },
+    { id: uid(), name: '24" 2K 显示器', resW: 2560, resH: 1440, diag: 24, scale: 100, widthCm: '' },
+  ];
+  return { devices: d, mode: 'A', baseId: d[0].id, baseDpi: 1600, ratio: 13.07 };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && s.desktop && Array.isArray(s.desktop.devices)) {
+        state = Object.assign(state, s);
+        state.desktop.devices = s.desktop.devices.map((d) => Object.assign({ widthCm: '' }, d));
+        // v3 屏幕列表
+        if (Array.isArray(s.fps && s.fps.screens)) {
+          state.fps.screens = s.fps.screens.map((x) => Object.assign({ widthCm: 53.1 }, x));
+          state.fps.baseDpi = +((s.fps && s.fps.baseDpi) || 1600);
+        } else if (Array.isArray(s.fps && s.fps.setups)) {
+          // 兼容旧版 setups：取屏宽、基准 DPI
+          const setups = s.fps.setups.map((x) => Object.assign({ widthCm: 53.1, fov: 103 }, x));
+          state.fps.screens = setups.map((x) => ({ id: x.id, name: x.name, widthCm: x.widthCm }));
+          const base = setups.find((x) => x.id === s.fps.baseId) || setups[0];
+          state.fps.baseId = base ? base.id : (state.fps.screens[0] || {}).id || '';
+          state.fps.baseDpi = base && +base.dpi ? +base.dpi : 1600;
+        } else {
+          state.fps = defaultFpsState();
+        }
+        if (!state.fps.baseId || !state.fps.screens.some((x) => x.id === state.fps.baseId)) {
+          state.fps.baseId = (state.fps.screens[0] || {}).id || '';
+        }
+        return;
+      }
+      // 兼容旧版 v1（仅有桌面设备）
+      if (s && Array.isArray(s.devices)) {
+        state.desktop.devices = s.devices.map((d) => Object.assign({ widthCm: '' }, d));
+        state.desktop.baseId = s.baseId || (state.desktop.devices[0] || {}).id || '';
+        state.desktop.mode = s.mode === 'B' ? 'B' : 'A';
+        state.desktop.baseDpi = +s.baseDpi || 1600;
+        state.desktop.ratio = +s.ratio || 13.07;
+        state.fps = defaultFpsState();
+        return;
+      }
+    }
+  } catch (e) { /* 忽略损坏数据 */ }
+  state.fps = defaultFpsState();
+  state.desktop = defaultDesktopState();
+}
+
+function save() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+// ---------- FPS：DPI × 屏宽 = 常数 ----------
+function fpsCalc() {
+  const base = state.fps.screens.find((x) => x.id === state.fps.baseId) || state.fps.screens[0] || null;
+  const bw = base ? +base.widthCm : 0;
+  return state.fps.screens.map((x) => {
+    const w = +x.widthCm || 0;
+    const dpi = (bw > 0 && w > 0) ? +state.fps.baseDpi * bw / w : 0;
+    const ratio = (bw > 0 && w > 0) ? bw / w : 0;
+    return { x, w, dpi, ratio, isBase: base ? x.id === base.id : false };
+  });
+}
+
+function renderFpsSetups() {
+  const body = $('#fpsBody');
+  if (!state.fps.screens.length) {
+    body.innerHTML = '<tr><td colspan="3" class="empty">还没有屏幕，用下面的表单添加。</td></tr>';
+    return;
+  }
+  body.innerHTML = state.fps.screens.map((x) =>
+    '<tr>' +
+    '<td>' + esc(x.name) + '</td>' +
+    '<td class="num">' + num(x.widthCm, 1) + '</td>' +
+    '<td><button class="btn sm" data-act="edit" data-id="' + x.id + '">编辑</button> ' +
+    '<button class="btn sm" data-act="base" data-id="' + x.id + '">设为基准</button> ' +
+    '<button class="btn sm danger" data-act="del" data-id="' + x.id + '">删除</button></td>' +
+    '</tr>'
+  ).join('');
+  body.querySelectorAll('[data-act=edit]').forEach((b) => b.onclick = () => fpsStartEdit(state.fps.screens.find((x) => x.id === b.dataset.id)));
+  body.querySelectorAll('[data-act=base]').forEach((b) => b.onclick = () => { state.fps.baseId = b.dataset.id; save(); renderFpsAll(); });
+  body.querySelectorAll('[data-act=del]').forEach((b) => b.onclick = () => fpsDel(b.dataset.id));
+}
+
+function renderFpsBaseSel() {
+  $('#fpsBaseSel').innerHTML = state.fps.screens.map((x) => '<option value="' + x.id + '"' + (x.id === state.fps.baseId ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('');
+}
+
+function renderFpsResults() {
+  const rows = fpsCalc();
+  const wrap = $('#fpsResultWrap');
+  if (!rows.length) { wrap.innerHTML = '<div class="empty">请先添加屏幕。</div>'; return; }
+  wrap.innerHTML =
+    '<table><thead><tr>' +
+    '<th>屏幕</th><th class="num">水平宽(cm)</th><th class="num">宽比值(基准/本机)</th><th class="num">推荐 DPI</th>' +
+    '</tr></thead><tbody>' +
+    rows.map((r) =>
+      '<tr class="' + (r.isBase ? 'base-row' : '') + '">' +
+      '<td>' + esc(r.x.name) + (r.isBase ? ' <span class="badge">基准</span>' : '') + '</td>' +
+      '<td class="num">' + num(r.w, 1) + '</td>' +
+      '<td class="num">' + num(r.ratio, 4) + '</td>' +
+      '<td class="num"><b>' + Math.round(r.dpi) + '</b></td>' +
+      '</tr>'
+    ).join('') +
+    '</tbody></table>' +
+    '<div class="okline">🎯 基准屏幕 <b>' + esc((rows.find((r) => r.isBase) || rows[0]).x.name) + '</b> 的 DPI = <b>' + Math.round(state.fps.baseDpi) + '</b>。各屏幕按「推荐 DPI」用鼠标驱动软件设置，即可获得相同的画面物理位移手感（DPI × 屏宽恒定）。</div>';
+}
+
+function renderFpsAll() {
+  renderFpsSetups();
+  renderFpsBaseSel();
+  renderFpsResults();
+}
+
+function fpsStartEdit(x) {
+  fpsEditingId = x.id;
+  $('#fFName').value = x.name;
+  $('#fFWidth').value = x.widthCm;
+  $('#btnFpsAdd').textContent = '保存修改';
+  $('#fFName').focus();
+}
+
+function fpsResetForm() {
+  fpsEditingId = null;
+  $('#fFName').value = '';
+  $('#fFWidth').value = '';
+  $('#btnFpsAdd').textContent = '添加屏幕';
+}
+
+function fpsAddOrUpdate() {
+  const name = $('#fFName').value.trim();
+  const widthCm = +$('#fFWidth').value;
+  if (!name) { alert('请填写屏幕名称'); return; }
+  if (!(widthCm > 0)) { alert('请填写有效的屏幕水平宽度'); return; }
+  if (fpsEditingId) {
+    const x = state.fps.screens.find((y) => y.id === fpsEditingId);
+    if (x) Object.assign(x, { name, widthCm });
+  } else {
+    state.fps.screens.push({ id: uid(), name, widthCm });
+    if (!state.fps.baseId) state.fps.baseId = state.fps.screens[0].id;
+  }
+  fpsResetForm();
+  save();
+  renderFpsAll();
+}
+
+function fpsDel(id) {
+  state.fps.screens = state.fps.screens.filter((x) => x.id !== id);
+  if (state.fps.baseId === id) state.fps.baseId = state.fps.screens.length ? state.fps.screens[0].id : '';
+  if (fpsEditingId === id) fpsResetForm();
+  save();
+  renderFpsAll();
+}
+
+// ---------- 桌面计算 ----------
+function desktopPhysWidthIn(d) {
+  if (d.widthCm && +d.widthCm > 0) return +d.widthCm / 2.54;
+  const w = +d.resW, h = +d.resH, diag = +d.diag;
+  if (w > 0 && h > 0 && diag > 0) return diag * w / Math.sqrt(w * w + h * h);
+  return 0;
+}
+function desktopEffPx(d) { return +d.resW / ((+d.scale || 100) / 100); }
+function desktopEffPPI(d) { const wi = desktopPhysWidthIn(d); return wi > 0 ? desktopEffPx(d) / wi : 0; }
+
+function desktopCalcAll() {
+  const base = state.desktop.devices.find((d) => d.id === state.desktop.baseId) || state.desktop.devices[0] || null;
+  const basePpi = base ? desktopEffPPI(base) : 0;
+  return state.desktop.devices.map((d) => {
+    const ppi = desktopEffPPI(d);
+    const dpi = state.desktop.mode === 'A'
+      ? (basePpi > 0 ? +state.desktop.baseDpi * ppi / basePpi : 0)
+      : (+state.desktop.ratio * ppi);
+    const widthCm = desktopPhysWidthIn(d) * 2.54;
+    const perInchCursorCm = ppi > 0 ? dpi / ppi * 2.54 : 0;
+    const crossCm = dpi > 0 ? desktopEffPx(d) / dpi * 2.54 : 0;
+    return { d, ppi, dpi, widthCm, perInchCursorCm, crossCm, effPx: desktopEffPx(d), isBase: base ? d.id === base.id : false };
+  });
+}
+
+function renderDesktopAll() {
+  renderDesktopDevices();
+  renderDesktopBaseSel();
+  renderDesktopResults();
+  renderDesktopVerify();
+}
+
+function renderDesktopDevices() {
+  const body = $('#devBody');
+  if (!state.desktop.devices.length) {
+    body.innerHTML = '<tr><td colspan="6" class="empty">还没有设备，用下面的表单添加，或选择快捷预设。</td></tr>';
+  } else {
+    body.innerHTML = state.desktop.devices.map((d) =>
+      '<tr>' +
+      '<td>' + esc(d.name) + '</td>' +
+      '<td class="num">' + (+d.resW) + ' × ' + (+d.resH) + '</td>' +
+      '<td class="num">' + num(d.diag, 1) + '</td>' +
+      '<td class="num">' + (+d.scale || 100) + '%</td>' +
+      '<td class="num">' + (d.widthCm ? num(d.widthCm, 1) : '按对角线') + '</td>' +
+      '<td><button class="btn sm" data-act="edit" data-id="' + d.id + '">编辑</button> ' +
+      '<button class="btn sm danger" data-act="del" data-id="' + d.id + '">删除</button></td>' +
+      '</tr>'
+    ).join('');
+  }
+  body.querySelectorAll('[data-act=edit]').forEach((b) => b.onclick = () => desktopStartEdit(state.desktop.devices.find((x) => x.id === b.dataset.id)));
+  body.querySelectorAll('[data-act=del]').forEach((b) => b.onclick = () => desktopDel(b.dataset.id));
+}
+
+function renderDesktopBaseSel() {
+  const sel = $('#baseSel');
+  sel.innerHTML = state.desktop.devices.map((d) => '<option value="' + d.id + '"' + (d.id === state.desktop.baseId ? ' selected' : '') + '>' + esc(d.name) + '</option>').join('');
+}
+
+function renderDesktopResults() {
+  const rows = desktopCalcAll();
+  $('#resultBadge').textContent = state.desktop.devices.length + ' 台设备';
+  if (!rows.length) { $('#resultWrap').innerHTML = '<div class="empty">请先添加设备。</div>'; return; }
+  const basePpi = rows.find((x) => x.isBase) ? rows.find((x) => x.isBase).ppi : 1;
+  $('#resultWrap').innerHTML =
+    '<table><thead><tr>' +
+    '<th>设备</th><th class="num">有效水平像素</th><th class="num">水平宽(cm)</th><th class="num">有效 PPI</th>' +
+    '<th class="num">推荐 DPI</th><th class="num">倍率</th><th class="num">1" 鼠标→光标(cm)</th><th class="num">横跨屏幕需移动(cm)</th>' +
+    '</tr></thead><tbody>' +
+    rows.map((r) => {
+      const isBase = state.desktop.mode === 'A' && r.isBase;
+      return '<tr class="' + (isBase ? 'base-row' : '') + '">' +
+      '<td>' + esc(r.d.name) + (isBase ? ' <span class="badge">基准</span>' : '') + '</td>' +
+      '<td class="num">' + Math.round(r.effPx) + '</td>' +
+      '<td class="num">' + num(r.widthCm, 1) + '</td>' +
+      '<td class="num">' + num(r.ppi, 1) + '</td>' +
+      '<td class="num"><b>' + Math.round(r.dpi) + '</b></td>' +
+      '<td class="num">' + (state.desktop.mode === 'B' ? num(state.desktop.ratio, 3) : (isBase ? '1.000' : num(r.ppi / basePpi, 3))) + '</td>' +
+      '<td class="num">' + num(r.perInchCursorCm, 2) + '</td>' +
+      '<td class="num">' + num(r.crossCm, 1) + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table>' +
+    '<div class="okline">✅ 手感一致的标志：所有设备的「1" 鼠标 → 光标(cm)」列数值相同' +
+    (state.desktop.mode === 'A' ? '（等于基准设备 ' + Math.round(state.desktop.baseDpi) + ' DPI 的手感）' : '（等于你设定的倍率 × 2.54 厘米）') + '。按各设备的「推荐 DPI」设置鼠标即可。</div>';
+}
+
+function renderDesktopVerify() {
+  const rows = desktopCalcAll();
+  const dist = Math.max(0.1, +$('#dist').value || 5);
+  if (!rows.length) { $('#verifyWrap').innerHTML = '<div class="empty">请先添加设备。</div>'; return; }
+  $('#verifyWrap').innerHTML =
+    '<table><thead><tr><th>设备</th><th class="num">鼠标移动 ' + num(dist, 1) + ' cm</th><th class="num">占屏幕宽度</th></tr></thead><tbody>' +
+    rows.map((r) => {
+      const cursorCm = dist / 2.54 * r.perInchCursorCm;
+      const pct = r.widthCm > 0 ? cursorCm / r.widthCm * 100 : 0;
+      return '<tr><td>' + esc(r.d.name) + '</td><td class="num"><b>' + num(cursorCm, 2) + ' cm</b></td><td class="num">' + num(pct, 1) + '%</td></tr>';
+    }).join('') +
+    '</tbody></table>' +
+    '<div class="note">各设备的「光标位移」应相同（同一手感）；「占屏百分比」因屏幕物理宽度不同而不同，这是正常且符合预期的。</div>';
+}
+
+function desktopStartEdit(d) {
+  desktopEditingId = d.id;
+  $('#fName').value = d.name;
+  $('#fW').value = d.resW;
+  $('#fH').value = d.resH;
+  $('#fDiag').value = d.diag;
+  $('#fScale').value = d.scale || 100;
+  $('#fWidthCm').value = d.widthCm || '';
+  $('#btnAddDev').textContent = '保存修改';
+  $('#fName').focus();
+}
+
+function desktopResetForm() {
+  desktopEditingId = null;
+  $('#fName').value = '';
+  $('#fW').value = '';
+  $('#fH').value = '';
+  $('#fDiag').value = '';
+  $('#fScale').value = '100';
+  $('#fWidthCm').value = '';
+  $('#btnAddDev').textContent = '添加设备';
+}
+
+function desktopFormDevice() {
+  const name = $('#fName').value.trim();
+  const w = +$('#fW').value, h = +$('#fH').value, diag = +$('#fDiag').value, scale = +$('#fScale').value;
+  const widthCm = $('#fWidthCm').value.trim();
+  if (!name) { alert('请填写设备名称'); return null; }
+  if (!(w > 0 && h > 0)) { alert('请填写有效的分辨率'); return null; }
+  if (!(widthCm || diag > 0)) { alert('请填写对角尺寸或水平宽度'); return null; }
+  if (!(scale >= 50 && scale <= 400)) { alert('缩放比例需在 50%~400% 之间'); return null; }
+  return { name, resW: w, resH: h, diag, scale, widthCm: widthCm || '' };
+}
+
+function desktopAddOrUpdate() {
+  const data = desktopFormDevice();
+  if (!data) return;
+  if (desktopEditingId) {
+    const d = state.desktop.devices.find((x) => x.id === desktopEditingId);
+    if (d) Object.assign(d, data);
+  } else {
+    state.desktop.devices.push(Object.assign({ id: uid() }, data));
+    if (!state.desktop.baseId) state.desktop.baseId = state.desktop.devices[0].id;
+  }
+  desktopResetForm();
+  save();
+  renderDesktopAll();
+}
+
+function desktopDel(id) {
+  state.desktop.devices = state.desktop.devices.filter((d) => d.id !== id);
+  if (state.desktop.baseId === id) state.desktop.baseId = state.desktop.devices.length ? state.desktop.devices[0].id : '';
+  if (desktopEditingId === id) desktopResetForm();
+  save();
+  renderDesktopAll();
+}
+
+function renderDesktopPresets() {
+  const sel = $('#presetSel');
+  sel.innerHTML = '<option value="">— 选择预设 —</option>' + PRESETS.map((p, i) => '<option value="' + i + '">' + esc(p.name) + '</option>').join('');
+}
+
+function desktopApplyPreset() {
+  const i = $('#presetSel').value;
+  if (i === '') return;
+  const p = PRESETS[+i];
+  state.desktop.devices.push(Object.assign({ id: uid() }, p));
+  if (!state.desktop.baseId) state.desktop.baseId = state.desktop.devices[0].id;
+  save();
+  renderDesktopAll();
+  $('#presetSel').value = '';
+}
+
+function setDesktopMode(mode) {
+  state.desktop.mode = mode;
+  document.querySelectorAll('#dModeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
+  $('#dModeARow').style.display = mode === 'A' ? 'flex' : 'none';
+  $('#dModeBRow').style.display = mode === 'B' ? 'flex' : 'none';
+  $('#dModeHint').textContent = mode === 'A'
+    ? '以基准设备的 DPI 为锚点，按「有效 PPI 等比」推算出其他设备的等效 DPI。'
+    : '直接指定目标手感：倍率 = 光标位移 ÷ 鼠标位移。每台设备的推荐 DPI = 倍率 × 有效 PPI。';
+  save();
+  renderDesktopResults();
+  renderDesktopVerify();
+}
+
+// ---------- 场景切换 ----------
+function setScenario(s) {
+  state.scenario = s;
+  document.querySelectorAll('#scenarioSeg button').forEach((b) => b.classList.toggle('on', b.dataset.s === s));
+  $('#fpsView').classList.toggle('hidden', s !== 'fps');
+  $('#desktopView').classList.toggle('hidden', s !== 'desktop');
+  if (s === 'fps') renderFpsAll(); else renderDesktopAll();
+  save();
+}
+
+// ---------- 工具函数 ----------
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ---------- 导出 / 导入 ----------
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'feel-sync-config.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+async function copyConfig() {
+  const text = JSON.stringify(state, null, 2);
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('配置已复制到剪贴板');
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    alert('配置已复制到剪贴板');
+  }
+}
+
+function importConfig(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const s = JSON.parse(reader.result);
+      if (!s || !s.desktop || !Array.isArray(s.desktop.devices)) throw new Error('bad');
+      state.desktop.devices = s.desktop.devices.map((d) => Object.assign({ widthCm: '' }, d));
+      state.desktop.mode = s.desktop.mode === 'B' ? 'B' : 'A';
+      state.desktop.baseDpi = +s.desktop.baseDpi || 1600;
+      state.desktop.ratio = +s.desktop.ratio || 13.07;
+      state.desktop.baseId = state.desktop.devices.some((d) => d.id === s.desktop.baseId) ? s.desktop.baseId : (state.desktop.devices[0] || {}).id || '';
+      if (Array.isArray(s.fps && s.fps.screens)) {
+        state.fps.screens = s.fps.screens.map((x) => Object.assign({ widthCm: 53.1 }, x));
+        state.fps.baseDpi = +((s.fps && s.fps.baseDpi) || 1600);
+      } else {
+        state.fps = defaultFpsState();
+      }
+      state.fps.baseId = state.fps.screens.some((x) => x.id === (s.fps && s.fps.baseId)) ? s.fps.baseId : (state.fps.screens[0] || {}).id || '';
+      state.scenario = s.scenario === 'desktop' ? 'desktop' : 'fps';
+      save();
+      fpsResetForm();
+      desktopResetForm();
+      setDesktopMode(state.desktop.mode);
+      renderDesktopPresets();
+      setScenario(state.scenario);
+      alert('导入成功');
+    } catch (e) {
+      alert('配置文件格式不正确');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ---------- 事件绑定 ----------
+$('#btnFpsAdd').onclick = fpsAddOrUpdate;
+$('#fpsBaseSel').onchange = () => { state.fps.baseId = $('#fpsBaseSel').value; save(); renderFpsResults(); };
+$('#fpsBaseDpi').oninput = () => { state.fps.baseDpi = +$('#fpsBaseDpi').value || 0; save(); renderFpsResults(); };
+
+$('#btnAddDev').onclick = desktopAddOrUpdate;
+$('#btnPreset').onclick = desktopApplyPreset;
+$('#presetSel').onchange = desktopApplyPreset;
+$('#baseSel').onchange = () => { state.desktop.baseId = $('#baseSel').value; save(); renderDesktopResults(); renderDesktopVerify(); };
+$('#baseDpi').oninput = () => { state.desktop.baseDpi = +$('#baseDpi').value || 0; save(); renderDesktopResults(); renderDesktopVerify(); };
+$('#ratio').oninput = () => { state.desktop.ratio = +$('#ratio').value || 0; save(); renderDesktopResults(); renderDesktopVerify(); };
+$('#dist').oninput = renderDesktopVerify;
+$('#dModeSeg').onclick = (e) => { const b = e.target.closest('button'); if (b) setDesktopMode(b.dataset.mode); };
+$('#scenarioSeg').onclick = (e) => { const b = e.target.closest('button'); if (b) setScenario(b.dataset.s); };
+
+$('#btnExport').onclick = exportJSON;
+$('#btnCopy').onclick = copyConfig;
+$('#btnImport').onclick = () => $('#importFile').click();
+$('#importFile').onchange = (e) => { if (e.target.files[0]) importConfig(e.target.files[0]); e.target.value = ''; };
+$('#btnReset').onclick = () => {
+  if (!confirm('恢复默认会清空当前配置（FPS 与桌面），确定吗？')) return;
+  localStorage.removeItem(LS_KEY);
+  state.fps = defaultFpsState();
+  state.desktop = defaultDesktopState();
+  state.scenario = 'fps';
+  fpsResetForm();
+  desktopResetForm();
+  renderDesktopPresets();
+  setDesktopMode('A');
+  setScenario('fps');
+};
+
+// ---------- 启动 ----------
+loadState();
+renderDesktopPresets();
+fpsResetForm();
+desktopResetForm();
+setDesktopMode(state.desktop.mode);
+setScenario(state.scenario);
+</script>
+</body>
+</html>

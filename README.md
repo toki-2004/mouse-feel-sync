@@ -8,16 +8,22 @@
 
 需求场景：**同一款 FPS 游戏、同一个游戏内灵敏度**，在不同大小的屏幕（16.1 寸笔记本、24 寸显示器等）上获得相同的「画面物理位移」手感；鼠标 DPI 通过鼠标驱动软件在各设备上同步。
 
-核心结论（来自《关于DPI的设置讨论》的延伸）：
+核心结论：
 
-- 以「鼠标移动 1cm，画面相对准星滑过的物理距离 cm」为手感基准：
-  \[
-  \text{画面位移} = \text{DPI} \times \text{灵敏度} \times \text{yaw} \times \frac{\text{屏幕水平宽}}{\text{FOV}}
-  \]
-- 同一款游戏、同一灵敏度、同一 FOV 时简化为 **DPI × 屏幕水平宽 = 常数**——所以换屏只需要按比例改 DPI：
-  \[
-  \text{DPI}_B = \text{DPI}_A \times \frac{\text{屏宽}_A}{\text{屏宽}_B}
-  \]
+以「鼠标移动 1cm，画面相对准星滑过的物理距离 cm」为手感基准：
+
+$$
+D = \mathrm{DPI} \times \mathrm{sens} \times \mathrm{yaw} \times \frac{W}{F}
+$$
+
+其中 $D$ 为鼠标移动 1cm 时画面相对准星的物理位移（cm），$\mathrm{sens}$ 为游戏内灵敏度，$\mathrm{yaw}$ 为每灵敏度单位对应的角度（°），$W$ 为屏幕水平物理宽度（cm），$F$ 为水平 FOV（°）。
+
+同一款游戏、同一灵敏度、同一 FOV 时，公式简化为 **DPI × 屏幕水平宽 = 常数**，换屏只需要按比例改 DPI：
+
+$$
+\mathrm{DPI}_B = \mathrm{DPI}_A \times \frac{W_A}{W_B}
+$$
+
 - **分辨率、Windows 显示缩放、屏幕型号都不影响游戏内效果**（Raw Input 直读鼠标计数），缩放只影响桌面。
 
 使用方式：录入设备（FPS 只用水平宽，留空时按对角 × 纵横比自动算；桌面场景还会用到分辨率与缩放），指定基准屏幕与基准 DPI，程序给出各屏幕的「推荐 DPI」；在各设备上用鼠标驱动软件同步该值即可。
@@ -30,9 +36,13 @@
 
 核心公式：
 
-- 有效水平像素 = 水平分辨率 ÷ 缩放系数；
-- 有效 PPI = 有效水平像素 ÷ 屏幕水平物理宽度；
-- 推荐 DPI = 手感倍率 × 有效 PPI（或按基准 DPI ∝ 有效 PPI 等比换算）。
+$$
+P_{\mathrm{eff}} = \frac{R}{S}, \qquad
+\mathrm{PPI}_{\mathrm{eff}} = \frac{P_{\mathrm{eff}}}{W_{\mathrm{in}}}, \qquad
+\mathrm{DPI} = k \times \mathrm{PPI}_{\mathrm{eff}}
+$$
+
+其中 $R$ 为水平分辨率（px），$S$ 为缩放系数（100% = 1.0），$W_{\mathrm{in}}$ 为屏幕水平物理宽度（英寸），$k$ 为手感倍率（光标位移 ÷ 鼠标位移）；或按基准 DPI ∝ 有效 PPI 等比换算。
 
 ⚠️ 注意：桌面光标受 Windows 缩放影响（逻辑分辨率变化），缩放比例务必按实际填写；且必须关闭「提高指针精确度」。
 
